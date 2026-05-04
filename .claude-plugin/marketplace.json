@@ -1,0 +1,13 @@
+{
+	"name": "mcp-plugin-sandbox",
+	"owner": {
+		"name": "ikharebashviliGD"
+	},
+	"plugins": [
+		{
+			"name": "mcp-plugin-sandbox",
+			"source": "./",
+			"description": "Sandbox plugin bundling XcodeBuildMCP, four iOS skills, and a SessionStart hook for true zero-touch auto-update; used for testing Claude Code plugin auto-update."
+		}
+	]
+}
