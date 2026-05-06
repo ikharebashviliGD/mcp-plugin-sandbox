@@ -1,0 +1,9 @@
+{
+	"name": "sandbox-web",
+	"version": "0.1.0",
+	"description": "Web-flavored sandbox plugin: bundles Playwright MCP and browser-related skills (page-snapshot, screenshot-page). Sibling to sandbox-mobile, used to validate the multi-plugin-in-one-repo marketplace layout and independent per-plugin auto-update.",
+	"author": {
+		"name": "ikharebashviliGD"
+	},
+	"keywords": ["sandbox", "test", "playwright", "browser", "web"]
+}

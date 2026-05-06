@@ -1,13 +1,24 @@
 {
+	"$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
 	"name": "mcp-plugin-sandbox",
+	"description": "Test marketplace bundling two sibling plugins from one repo: sandbox-mobile (XcodeBuildMCP + iOS skills) and sandbox-web (Playwright MCP + browser skills). Used to validate the multi-plugin-in-one-repo layout and independent per-plugin auto-update.",
 	"owner": {
 		"name": "ikharebashviliGD"
 	},
 	"plugins": [
 		{
-			"name": "mcp-plugin-sandbox",
-			"source": "./",
-			"description": "Sandbox plugin bundling XcodeBuildMCP, four iOS skills, and a SessionStart hook for true zero-touch auto-update; used for testing Claude Code plugin auto-update."
+			"name": "sandbox-mobile",
+			"source": "./plugins/mobile",
+			"description": "Mobile sandbox plugin: XcodeBuildMCP + four iOS skills (list-simulators, list-devices, list-schemes, discover-projects). Includes a SessionStart hook for zero-touch per-plugin auto-update.",
+			"category": "development",
+			"keywords": ["sandbox", "xcodebuildmcp", "ios", "mobile"]
+		},
+		{
+			"name": "sandbox-web",
+			"source": "./plugins/web",
+			"description": "Web sandbox plugin: Playwright MCP + two browser skills (page-snapshot, screenshot-page). Sibling to sandbox-mobile; independent versioning and updates.",
+			"category": "development",
+			"keywords": ["sandbox", "playwright", "browser", "web"]
 		}
 	]
 }
