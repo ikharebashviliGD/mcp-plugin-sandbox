@@ -1,6 +1,6 @@
 # mcp-plugin-sandbox
 
-Sandbox **marketplace** that hosts **two sibling plugins** in a single git repository, used to validate the multi-plugin layout (one repo, multiple plugins) and per-plugin independent auto-update across clients.
+Sandbox **marketplace** that hosts **two sibling plugins** in a single git repository, used to validate the multi-plugin layout (one repo, multiple plugins) and per-plugin independent auto-update across clients. Ships per-client manifests for **Claude Code** and **Cursor** from the same source tree.
 
 | Plugin | Server | Skills | Purpose |
 |---|---|---|---|
@@ -14,22 +14,26 @@ Both plugins are **placeholders** — they intentionally do **not** use Evinced 
 ```
 mcp-plugin-sandbox/
 ├── .claude-plugin/
-│   └── marketplace.json              # catalog: lists both plugins via subdir source
+│   └── marketplace.json              # Claude catalog: lists both plugins
+├── .cursor-plugin/
+│   └── marketplace.json              # Cursor catalog: same listing, Cursor schema
 ├── plugins/
 │   ├── mobile/                       # sandbox-mobile @ 0.1.0
-│   │   ├── .claude-plugin/plugin.json
-│   │   ├── .mcp.json                 # XcodeBuildMCP
-│   │   ├── hooks/hooks.json          # SessionStart hook
+│   │   ├── .claude-plugin/plugin.json    # Claude manifest
+│   │   ├── .cursor-plugin/plugin.json    # Cursor manifest (points mcpServers → ./.mcp.json)
+│   │   ├── .mcp.json                     # XcodeBuildMCP — shared by both clients
+│   │   ├── hooks/hooks.json              # SessionStart hook (Claude only)
 │   │   ├── scripts/refresh-marketplace.sh
-│   │   └── skills/
+│   │   └── skills/                       # SKILL.md format is identical for Claude and Cursor
 │   │       ├── list-simulators/SKILL.md
 │   │       ├── list-devices/SKILL.md
 │   │       ├── list-schemes/SKILL.md
 │   │       └── discover-projects/SKILL.md
 │   └── web/                          # sandbox-web @ 0.1.0
 │       ├── .claude-plugin/plugin.json
-│       ├── .mcp.json                 # Playwright MCP
-│       ├── hooks/hooks.json          # SessionStart hook
+│       ├── .cursor-plugin/plugin.json
+│       ├── .mcp.json                     # Playwright MCP — shared
+│       ├── hooks/hooks.json              # SessionStart hook (Claude only)
 │       ├── scripts/refresh-marketplace.sh
 │       └── skills/
 │           ├── page-snapshot/SKILL.md
@@ -39,9 +43,11 @@ mcp-plugin-sandbox/
 
 Key design points:
 
-- **One marketplace, two plugins.** The marketplace catalog at the repo root references each plugin via a relative `source` path (`./plugins/mobile`, `./plugins/web`).
-- **Each plugin is self-contained.** Its own `plugin.json`, MCP registration, hooks, and skills live under its subdirectory. Nothing is shared at runtime.
-- **Each plugin owns its own SessionStart hook.** Both hooks refresh the same marketplace, but each only updates its own plugin (`sandbox-mobile@…` or `sandbox-web@…`). This means you can install one without the other, and version bumps are fully independent.
+- **One repo, two plugins, two clients.** Each plugin ships side-by-side manifests for Claude Code (`.claude-plugin/plugin.json`) and Cursor (`.cursor-plugin/plugin.json`) from the same source tree. Skills and `.mcp.json` are written once and reused by both clients.
+- **MCP config is not duplicated.** Claude reads `.mcp.json` automatically; Cursor's manifest points `mcpServers` at the same `./.mcp.json` file.
+- **Per-client marketplaces sit at the repo root.** `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json` list the same two plugins via subdir `source` paths.
+- **Each plugin is self-contained.** Manifests, MCP registration, hooks, and skills live under the plugin's subdirectory. Nothing is shared between mobile and web at runtime.
+- **Each plugin owns its own SessionStart hook (Claude only).** Both hooks refresh the same marketplace, but each only updates its own plugin (`sandbox-mobile@…` or `sandbox-web@…`). This keeps version bumps fully independent. Cursor relies on its own built-in plugin auto-update and does not need a hook for this.
 
 ## Install in Claude Code
 
@@ -69,7 +75,7 @@ After install, restart the Claude Code session. Each installed plugin's MCP serv
 
 ## Install in Cursor
 
-Cursor's `/add-plugin` command works only with plugins published to the Cursor Marketplace — it does **not** accept arbitrary git URLs. To test this sandbox in Cursor without going through marketplace submission, use the local-clone path:
+Cursor's `/add-plugin <name>` slash command only resolves names from the Cursor Marketplace — it does not accept arbitrary git URLs. While this sandbox is not published to the official marketplace, it can be loaded via Cursor's local-plugin path:
 
 ```bash
 mkdir -p ~/.cursor/plugins/local
@@ -77,15 +83,11 @@ cd ~/.cursor/plugins/local
 git clone https://github.com/ikharebashviliGD/mcp-plugin-sandbox.git
 ```
 
-Cursor reads `~/.cursor/plugins/local/<plugin>/` as a plugin root. For a multi-plugin repo, you may need to symlink each subdirectory in as its own plugin folder:
+Because the repository root contains `.cursor-plugin/marketplace.json`, Cursor discovers it as a multi-plugin source and registers both `sandbox-mobile` and `sandbox-web` from their respective `plugins/<name>/.cursor-plugin/plugin.json` manifests.
 
-```bash
-cd ~/.cursor/plugins/local
-ln -s mcp-plugin-sandbox/plugins/mobile sandbox-mobile
-ln -s mcp-plugin-sandbox/plugins/web sandbox-web
-```
+Restart Cursor. Both plugins should appear in the Plugins panel and can be enabled independently. Their MCP servers are picked up from `plugins/<name>/.mcp.json` (referenced via `mcpServers` in the Cursor manifest), and skills under `plugins/<name>/skills/` are auto-discovered.
 
-Restart Cursor. Both plugins should appear in the Plugins panel and can be enabled independently. (This is exactly what we want to verify: that Cursor treats subdirectory plugins as fully separate.)
+To verify that subdirectory plugins are treated as fully separate, enable only `sandbox-mobile` and confirm that Playwright MCP and the web skills do not appear.
 
 ## What this sandbox is meant to validate
 
@@ -95,7 +97,8 @@ Restart Cursor. Both plugins should appear in the Plugins panel and can be enabl
 | 2 | Can the user install **only one** of them? | Install `sandbox-mobile` only. Verify that Playwright MCP is NOT registered and that web skills do NOT appear in skill discovery. |
 | 3 | Are plugin versions tracked **independently**? | Bump `plugins/mobile/.claude-plugin/plugin.json` to `0.2.0`, leave web at `0.1.0`. After session restart + auto-update, only mobile cache directory should advance to `0.2.0`. Web cache stays at `0.1.0`. |
 | 4 | Does the SessionStart hook of one plugin trigger updates for the **other**? (It should NOT.) | After installing both plugins, bump only mobile's version. Inspect `/tmp/sandbox-mobile-hook.log` and `/tmp/sandbox-web-hook.log` — only mobile's update should report a version change. |
-| 5 | Does Cursor handle the same multi-plugin layout? | Per the Cursor install steps above — both plugins should appear and be independently toggleable. |
+| 5 | Does Cursor handle the same multi-plugin layout? | After local-clone install, the Plugins panel should list both plugins as separate entries. Toggling one should not affect the other's MCP server or skills. |
+| 6 | Does the same source tree serve both Claude Code and Cursor without duplication? | `.mcp.json` and `skills/` are written once. Cursor's manifest references the same `.mcp.json` via `mcpServers`. Both clients see the same MCP server and skills with no copy/paste. |
 
 ## Verification queries
 

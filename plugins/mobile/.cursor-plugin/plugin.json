@@ -1,0 +1,10 @@
+{
+	"name": "sandbox-mobile",
+	"version": "0.1.0",
+	"description": "Mobile-flavored sandbox plugin: bundles XcodeBuildMCP and iOS-related skills (list-simulators, list-devices, list-schemes, discover-projects). Sibling to sandbox-web; used to validate the multi-plugin-in-one-repo layout on Cursor.",
+	"author": {
+		"name": "ikharebashviliGD"
+	},
+	"keywords": ["sandbox", "test", "xcodebuildmcp", "ios", "simulator", "mobile"],
+	"mcpServers": "./.mcp.json"
+}

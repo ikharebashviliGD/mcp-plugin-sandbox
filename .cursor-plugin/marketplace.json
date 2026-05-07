@@ -1,0 +1,25 @@
+{
+	"name": "mcp-plugin-sandbox",
+	"owner": {
+		"name": "ikharebashviliGD"
+	},
+	"metadata": {
+		"description": "Test marketplace bundling two sibling plugins from one repo: sandbox-mobile (XcodeBuildMCP + iOS skills) and sandbox-web (Playwright MCP + browser skills). Cursor counterpart of the .claude-plugin marketplace."
+	},
+	"plugins": [
+		{
+			"name": "sandbox-mobile",
+			"source": "plugins/mobile",
+			"description": "Mobile sandbox plugin: XcodeBuildMCP + four iOS skills (list-simulators, list-devices, list-schemes, discover-projects).",
+			"category": "development",
+			"keywords": ["sandbox", "xcodebuildmcp", "ios", "mobile"]
+		},
+		{
+			"name": "sandbox-web",
+			"source": "plugins/web",
+			"description": "Web sandbox plugin: Playwright MCP + two browser skills (page-snapshot, screenshot-page). Sibling to sandbox-mobile; independent versioning and updates.",
+			"category": "development",
+			"keywords": ["sandbox", "playwright", "browser", "web"]
+		}
+	]
+}
