@@ -1,6 +1,6 @@
 # mcp-plugin-sandbox
 
-Sandbox **marketplace** that hosts **two sibling plugins** in a single git repository, used to validate the multi-plugin layout (one repo, multiple plugins) and per-plugin independent auto-update across clients. Ships per-client manifests for **Claude Code** and **Cursor** from the same source tree.
+Sandbox **marketplace** that hosts **two sibling plugins** in a single git repository, used to validate the multi-plugin layout (one repo, multiple plugins) and per-plugin independent auto-update across clients. Ships per-client manifests for **Claude Code**, **Cursor**, and **Kiro** from the same source tree.
 
 | Plugin | Server | Skills | Purpose |
 |---|---|---|---|
@@ -21,30 +21,43 @@ mcp-plugin-sandbox/
 │   ├── mobile/                       # sandbox-mobile @ 0.1.0
 │   │   ├── .claude-plugin/plugin.json    # Claude manifest
 │   │   ├── .cursor-plugin/plugin.json    # Cursor manifest (points mcpServers → ./.mcp.json)
-│   │   ├── .mcp.json                     # XcodeBuildMCP — shared by both clients
+│   │   ├── POWER.md                      # Kiro manifest (Power: frontmatter + onboarding)
+│   │   ├── .mcp.json                     # XcodeBuildMCP — shared by all three clients
+│   │   ├── mcp.json                      # symlink → ./.mcp.json (Kiro expects mcp.json)
 │   │   ├── hooks/hooks.json              # SessionStart hook (Claude only)
 │   │   ├── scripts/refresh-marketplace.sh
-│   │   └── skills/                       # SKILL.md format is identical for Claude and Cursor
-│   │       ├── list-simulators/SKILL.md
-│   │       ├── list-devices/SKILL.md
-│   │       ├── list-schemes/SKILL.md
-│   │       └── discover-projects/SKILL.md
+│   │   ├── skills/                       # SKILL.md format is identical for Claude and Cursor
+│   │   │   ├── list-simulators/SKILL.md
+│   │   │   ├── list-devices/SKILL.md
+│   │   │   ├── list-schemes/SKILL.md
+│   │   │   └── discover-projects/SKILL.md
+│   │   └── steering/                     # Kiro counterpart of skills/ (one .md per skill)
+│   │       ├── list-simulators.md
+│   │       ├── list-devices.md
+│   │       ├── list-schemes.md
+│   │       └── discover-projects.md
 │   └── web/                          # sandbox-web @ 0.1.0
 │       ├── .claude-plugin/plugin.json
 │       ├── .cursor-plugin/plugin.json
+│       ├── POWER.md                      # Kiro manifest
 │       ├── .mcp.json                     # Playwright MCP — shared
+│       ├── mcp.json                      # symlink → ./.mcp.json
 │       ├── hooks/hooks.json              # SessionStart hook (Claude only)
 │       ├── scripts/refresh-marketplace.sh
-│       └── skills/
-│           ├── page-snapshot/SKILL.md
-│           └── screenshot-page/SKILL.md
+│       ├── skills/
+│       │   ├── page-snapshot/SKILL.md
+│       │   └── screenshot-page/SKILL.md
+│       └── steering/
+│           ├── page-snapshot.md
+│           └── screenshot-page.md
 └── README.md
 ```
 
 Key design points:
 
-- **One repo, two plugins, two clients.** Each plugin ships side-by-side manifests for Claude Code (`.claude-plugin/plugin.json`) and Cursor (`.cursor-plugin/plugin.json`) from the same source tree. Skills and `.mcp.json` are written once and reused by both clients.
-- **MCP config is not duplicated.** Claude reads `.mcp.json` automatically; Cursor's manifest points `mcpServers` at the same `./.mcp.json` file.
+- **One repo, two plugins, three clients.** Each plugin ships side-by-side manifests for Claude Code (`.claude-plugin/plugin.json`), Cursor (`.cursor-plugin/plugin.json`), and Kiro (`POWER.md`) from the same source tree. The MCP server definition is written once and reused by all three.
+- **MCP config is not duplicated.** Claude reads `.mcp.json` automatically; Cursor's manifest points `mcpServers` at the same `./.mcp.json` file; Kiro expects a file literally named `mcp.json`, so `mcp.json` is a **symlink** to `./.mcp.json` (git stores it as a symlink, mode `120000` — one source of truth, no copied content).
+- **Kiro uses "Powers", not a marketplace catalog.** Kiro has no `marketplace.json` equivalent. Its plugin unit is a **Power**: a folder with `POWER.md` (frontmatter + onboarding), an optional `mcp.json`, and an optional `steering/` folder. Each `plugins/<name>/` subdir is a self-contained Power. Skills are mirrored into `steering/*.md` (Kiro's per-file guidance format, with `inclusion:` frontmatter), keeping the same `[skill:… v1]` verification markers as Claude/Cursor.
 - **Per-client marketplaces sit at the repo root.** `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json` list the same two plugins via subdir `source` paths.
 - **Each plugin is self-contained.** Manifests, MCP registration, hooks, and skills live under the plugin's subdirectory. Nothing is shared between mobile and web at runtime.
 - **Each plugin owns its own SessionStart hook (Claude only).** Both hooks refresh the same marketplace, but each only updates its own plugin (`sandbox-mobile@…` or `sandbox-web@…`). This keeps version bumps fully independent. Cursor relies on its own built-in plugin auto-update and does not need a hook for this.
@@ -89,6 +102,27 @@ Restart Cursor. Both plugins should appear in the Plugins panel and can be enabl
 
 To verify that subdirectory plugins are treated as fully separate, enable only `sandbox-mobile` and confirm that Playwright MCP and the web skills do not appear.
 
+## Install in Kiro
+
+Kiro's plugin unit is a **Power** (a folder with `POWER.md` + optional `mcp.json` + optional `steering/`). Each `plugins/<name>/` subdir is a self-contained Power.
+
+> **Important layout caveat.** Kiro's **Import power from GitHub** requires a valid `POWER.md` at the **repository root**, so it cannot pick up the two Powers from their `plugins/<name>/` subdirectories directly via a single repo URL. For this multi-plugin layout, install each Power via **local folder import**, pointing at the subdirectory:
+
+```bash
+git clone https://github.com/ikharebashviliGD/mcp-plugin-sandbox.git
+```
+
+Then in Kiro:
+
+1. Open the **Powers** panel → **Add Custom Power** → **Import power from a folder**.
+2. Select `mcp-plugin-sandbox/plugins/mobile` to install `sandbox-mobile`, and/or
+   `mcp-plugin-sandbox/plugins/web` to install `sandbox-web`. Each is independent — install only one if you like.
+3. Confirm. Kiro reads `POWER.md`, registers the MCP server from `mcp.json` (the symlink resolves to the shared `.mcp.json`), and loads the `steering/*.md` guides.
+
+Powers activate on the keywords declared in their `POWER.md` frontmatter. The `steering/*.md` files use `inclusion: manual`, so each is also reachable as a slash command (type `/` in chat). They carry the same `[skill:… v1]` verification markers, so the [verification queries](#verification-queries) below work identically in Kiro.
+
+> If you only need a single Power installable from a GitHub URL, copy that Power's files (`POWER.md`, `mcp.json`, `steering/`) to a repo root — this sandbox keeps them in subdirectories on purpose, to test the same multi-plugin layout used for Claude and Cursor.
+
 ## What this sandbox is meant to validate
 
 | # | Question | How to verify |
@@ -98,7 +132,9 @@ To verify that subdirectory plugins are treated as fully separate, enable only `
 | 3 | Are plugin versions tracked **independently**? | Bump `plugins/mobile/.claude-plugin/plugin.json` to `0.2.0`, leave web at `0.1.0`. After session restart + auto-update, only mobile cache directory should advance to `0.2.0`. Web cache stays at `0.1.0`. |
 | 4 | Does the SessionStart hook of one plugin trigger updates for the **other**? (It should NOT.) | After installing both plugins, bump only mobile's version. Inspect `/tmp/sandbox-mobile-hook.log` and `/tmp/sandbox-web-hook.log` — only mobile's update should report a version change. |
 | 5 | Does Cursor handle the same multi-plugin layout? | After local-clone install, the Plugins panel should list both plugins as separate entries. Toggling one should not affect the other's MCP server or skills. |
-| 6 | Does the same source tree serve both Claude Code and Cursor without duplication? | `.mcp.json` and `skills/` are written once. Cursor's manifest references the same `.mcp.json` via `mcpServers`. Both clients see the same MCP server and skills with no copy/paste. |
+| 6 | Does the same source tree serve Claude Code, Cursor, **and Kiro** without duplication? | The MCP server is written once in `.mcp.json`. Cursor references it via `mcpServers`; Kiro reads `mcp.json` (a symlink to it). Skills exist once per client format (`skills/` for Claude/Cursor, `steering/` for Kiro) with shared verification markers. No MCP config is copy/pasted. |
+| 7 | Can Kiro install each subdirectory Power independently? | Via **Import power from a folder**, install only `plugins/mobile`. Verify Playwright MCP and the web steering guides do NOT appear. Then add `plugins/web` and confirm both run side by side. |
+| 8 | Does Kiro's GitHub-URL import work for this subdirectory layout? (It should NOT, by design.) | **Import power from GitHub** with the repo URL fails to find a Power — there is no `POWER.md` at the repo root. This confirms the documented constraint; use local folder import instead. |
 
 ## Verification queries
 
